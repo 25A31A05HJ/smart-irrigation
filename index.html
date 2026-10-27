@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Irrigation Scheduler</title>
+<style>
+  :root{
+    --bg:#f3f7f1; --card:#ffffff; --ink:#1b2a1e; --muted:#5b6b5e; --line:#dce6d8;
+    --green:#2e7d32; --green-soft:#e3f2e1; --blue:#1565c0; --blue-soft:#e3effb;
+    --amber:#e65100; --amber-soft:#fff1e0; --red:#c62828; --red-soft:#fdeaea; --grey-soft:#eceff1;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#121a14; --card:#1b261d; --ink:#e6efe7; --muted:#9db0a0; --line:#2c3b2f;
+      --green:#6fcf76; --green-soft:#1f3a22; --blue:#6aaef2; --blue-soft:#1b2f45;
+      --amber:#ffa24d; --amber-soft:#3d2a14; --red:#ff7b7b; --red-soft:#402020; --grey-soft:#263238;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+  header{background:linear-gradient(135deg,#1b5e20,#2e7d32 55%,#0277bd);color:#fff;padding:26px 20px}
+  header .wrap{max-width:1150px;margin:0 auto}
+  h1{margin:0 0 6px;font-size:1.7rem}
+  header p{margin:0 0 12px;opacity:.92}
+  .badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:3px 12px;font-size:.8rem;margin-right:6px}
+  main{max-width:1150px;margin:0 auto;padding:18px 16px 50px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
+  h2{margin:0 0 12px;font-size:1.15rem}
+  .muted{color:var(--muted);font-size:.88rem}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:.9rem}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  td.num,th.num{text-align:right}
+  input,select,button{font:inherit}
+  input,select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+  input.small{width:78px}
+  button{cursor:pointer;border:0;border-radius:8px;padding:7px 14px;background:var(--green);color:#fff;font-weight:600}
+  button.secondary{background:var(--grey-soft);color:var(--ink)}
+  button.danger{background:var(--red-soft);color:var(--red)}
+  button:hover{filter:brightness(1.07)}
+  .bar{position:relative;width:110px;height:10px;border-radius:6px;background:var(--grey-soft);display:inline-block;vertical-align:middle;margin-right:8px}
+  .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+  .bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .controls label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:3px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+  .stat{border-radius:12px;padding:12px;background:var(--green-soft)}
+  .stat.blue{background:var(--blue-soft)} .stat.amber{background:var(--amber-soft)} .stat.grey{background:var(--grey-soft)}
+  .stat .v{font-size:1.35rem;font-weight:700}
+  .stat .l{font-size:.78rem;color:var(--muted)}
+  .pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.75rem;font-weight:700}
+  .FULL{background:var(--green-soft);color:var(--green)}
+  .PARTIAL{background:var(--amber-soft);color:var(--amber)}
+  .DEFERRED,.UNREACHABLE{background:var(--red-soft);color:var(--red)}
+  tr.click{cursor:pointer} tr.click:hover td{background:var(--green-soft)} tr.sel td{background:var(--blue-soft)}
+  #msg{padding:10px 14px;border-radius:10px;margin-bottom:14px;display:none;font-size:.92rem}
+  #msg.err{display:block;background:var(--red-soft);color:var(--red)}
+  #msg.ok{display:block;background:var(--green-soft);color:var(--green)}
+  svg text{fill:var(--ink);font-size:11px;paint-order:stroke;stroke:var(--card);stroke-width:3px}
+  svg .elen{fill:var(--muted);font-size:10px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:6px}
+  .legend span::before{content:"";display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;background:var(--c)}
+  .two{display:grid;grid-template-columns:1fr;gap:18px}
+  details summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>&#127807; Smart Irrigation Scheduler</h1>
+    <p>Schedules irrigation by soil moisture, rain forecast and crop needs &mdash; to save water and grow more food.</p>
+    <span class="badge">SDG 2 &middot; Zero Hunger</span>
+    <span class="badge">SDG 6 &middot; Clean Water &amp; Sanitation</span>
+    <span class="badge">Greedy + Min-Heap + Graph (Dijkstra)</span>
+  </div>
+</header>
+
+<main>
+  <div id="msg"></div>
+
+  <section>
+    <h2>1. Farm zones</h2>
+    <p class="muted">Edit a zone's current soil moisture or the 24h rain forecast, then press Save. The black tick on each bar is the crop's target moisture.</p>
+    <div class="scroll"><table id="zoneTable"></table></div>
+    <details style="margin-top:14px">
+      <summary>Add a new zone</summary>
+      <div class="controls" style="margin-top:10px">
+        <label>Name<input id="a_name" placeholder="East Plot"></label>
+        <label>Crop<input id="a_crop" placeholder="Cotton"></label>
+        <label>Moisture %<input id="a_moist" class="small" type="number" min="0" max="100" value="30"></label>
+        <label>Target %<input id="a_target" class="small" type="number" min="1" max="100" value="50"></label>
+        <label>Area m&sup2;<input id="a_area" class="small" type="number" min="1" value="800"></label>
+        <label>Rain mm<input id="a_rain" class="small" type="number" min="0" max="200" value="0"></label>
+        <label>Pipe outlet<select id="a_node"></select></label>
+        <button onclick="addZone()">Add zone</button>
+      </div>
+    </details>
+    <div style="margin-top:12px"><button class="secondary" onclick="resetZones()">Reset sample data</button></div>
+  </section>
+
+  <section>
+    <h2>2. Generate irrigation schedule</h2>
+    <div class="controls">
+      <label>Water budget at tank (litres)<input id="budget" type="number" min="0" value="6000" style="width:190px"></label>
+      <button onclick="runSchedule()">Generate schedule</button>
+    </div>
+    <div id="summary" class="cards"></div>
+    <div class="scroll"><table id="schedTable"></table></div>
+    <p id="skipped" class="muted"></p>
+    <p class="muted">Tip: click a row to highlight its water route on the pipe map below.</p>
+  </section>
+
+  <section>
+    <h2>3. Pipe network (shortest water route)</h2>
+    <div class="scroll"><div id="net"></div></div>
+    <div class="legend">
+      <span style="--c:#1565c0">Water tank</span>
+      <span style="--c:#8d9a8f">Junction</span>
+      <span style="--c:#2e7d32">Zone outlet</span>
+      <span style="--c:#e65100">Selected route</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <ul class="muted">
+      <li><b>Soil moisture + rain forecast:</b> forecast rain is added to current moisture, so zones that rain will refill are skipped.</li>
+      <li><b>Min-Heap:</b> every thirsty zone is pushed into a priority queue ordered by effective moisture.</li>
+      <li><b>Greedy:</b> the driest zone is popped and watered first until the water budget runs out.</li>
+      <li><b>Graph + Dijkstra:</b> the pipe network gives the shortest route from the tank; longer routes lose more water in the pipes.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+var network = null, zones = [], schedule = null, selected = -1;
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function f1(n){ return Number(n).toFixed(1); }
+
+function showMsg(text, ok){
+  var m = $('msg'); m.textContent = text; m.className = ok ? 'ok' : 'err';
+  clearTimeout(showMsg.t); showMsg.t = setTimeout(function(){ m.className=''; m.style.display=''; }, ok ? 2500 : 6000);
+}
+
+async function api(path, opts){
+  var res, data;
+  try { res = await fetch(path, opts); data = await res.json(); }
+  catch(e){ throw new Error('Cannot reach the C++ server. Is it still running?'); }
+  if(!res.ok || data.ok === false) throw new Error(data.error || 'Request failed');
+  return data;
+}
+function post(path, obj){
+  return api(path, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams(obj).toString() });
+}
+
+/* ---------- zones ---------- */
+function renderZones(){
+  var h = '<tr><th>ID</th><th>Zone</th><th>Crop</th><th>Soil moisture</th><th class="num">Target %</th><th class="num">Area m&sup2;</th><th>Set moisture %</th><th>Rain mm</th><th class="num">Needs (L)</th><th></th></tr>';
+  zones.forEach(function(z){
+    var color = z.effMoisture >= z.target ? 'var(--green)' : (z.effMoisture < z.target*0.6 ? 'var(--red)' : 'var(--amber)');
+    h += '<tr><td>'+z.id+'</td><td><b>'+esc(z.name)+'</b><br><span class="muted">'+esc(z.nodeName)+'</span></td><td>'+esc(z.crop)+'</td>'
+      + '<td><span class="bar"><i style="width:'+Math.min(100,z.effMoisture)+'%;background:'+color+'"></i><b style="left:'+Math.min(100,z.target)+'%"></b></span>'+f1(z.effMoisture)+'%</td>'
+      + '<td class="num">'+f1(z.target)+'</td><td class="num">'+f1(z.area)+'</td>'
+      + '<td><input class="small" type="number" min="0" max="100" step="0.5" id="m'+z.id+'" value="'+z.moisture+'"></td>'
+      + '<td><input class="small" type="number" min="0" max="200" step="0.5" id="r'+z.id+'" value="'+z.rain+'"></td>'
+      + '<td class="num">'+f1(z.needLiters)+'</td>'
+      + '<td><button onclick="saveZone('+z.id+')">Save</button> <button class="danger" onclick="delZone('+z.id+')">Delete</button></td></tr>';
+  });
+  if(!zones.length) h += '<tr><td colspan="10" class="muted">No zones. Add one below.</td></tr>';
+  $('zoneTable').innerHTML = h;
+}
+
+function fillNodeSelect(){
+  var s = $('a_node'); s.innerHTML = '';
+  network.nodes.forEach(function(n){
+    if(n.id !== network.source && n.name.indexOf('Outlet') === 0){
+      var o = document.createElement('option'); o.value = n.id; o.textContent = n.name; s.appendChild(o);
+    }
+  });
+}
+
+async function saveZone(id){
+  try{
+    var d = await post('/api/update', {id:id, moisture:$('m'+id).value, rain:$('r'+id).value});
+    zones = d.zones; renderZones(); renderNetwork(currentPath()); showMsg('Zone updated. Generate the schedule again to see the effect.', true);
+  }catch(e){ showMsg(e.message, false); }
+}
+async function delZone(id){
+  if(!confirm('Delete this zone?')) return;
+  try{ var d = await post('/api/delete', {id:id}); zones = d.zones; clearSchedule(); renderZones(); renderNetwork([]); showMsg('Zone deleted.', true); }
+  catch(e){ showMsg(e.message, false); }
+}
+async function addZone(){
+  try{
+    var d = await post('/api/add', {name:$('a_name').value.trim(), crop:$('a_crop').value.trim(), moisture:$('a_moist').value,
+      target:$('a_target').value, area:$('a_area').value, rain:$('a_rain').value, node:$('a_node').value});
+    zones = d.zones; renderZones(); renderNetwork(currentPath()); $('a_name').value=''; $('a_crop').value=''; showMsg('Zone added.', true);
+  }catch(e){ showMsg(e.message, false); }
+}
+async function resetZones(){
+  try{ var d = await post('/api/reset', {}); zones = d.zones; clearSchedule(); renderZones(); renderNetwork([]); showMsg('Sample data restored.', true); }
+  catch(e){ showMsg(e.message, false); }
+}
+
+/* ---------- schedule ---------- */
+function clearSchedule(){ schedule = null; selected = -1; $('summary').innerHTML=''; $('schedTable').innerHTML=''; $('skipped').textContent=''; }
+function currentPath(){ return (schedule && selected >= 0 && schedule.entries[selected]) ? schedule.entries[selected].path : []; }
+
+async function runSchedule(){
+  var b = parseFloat($('budget').value);
+  if(!(b >= 0)){ showMsg('Enter a valid water budget (0 or more litres).', false); return; }
+  try{
+    schedule = await api('/api/schedule?budget=' + encodeURIComponent(b));
+    selected = schedule.entries.length ? 0 : -1;
+    renderSchedule(); renderNetwork(currentPath());
+  }catch(e){ showMsg(e.message, false); }
+}
+
+function renderSchedule(){
+  var s = schedule;
+  $('summary').innerHTML =
+    stat('', f1(s.totalSource)+' L', 'Drawn from tank') + stat('blue', f1(s.totalDelivered)+' L', 'Delivered to crops') +
+    stat('amber', f1(s.lost)+' L', 'Lost in pipes') + stat('grey', f1(s.remaining)+' L', 'Budget left') +
+    stat('blue', f1(s.totalMinutes)+' min', 'Total pumping time') + stat('', f1(s.savedByForecast)+' L', 'Saved by rain forecast');
+
+  var h = '<tr><th>#</th><th>Zone</th><th>Crop</th><th class="num">Moisture %</th><th class="num">Pipe dist (m)</th><th class="num">Needs (L)</th><th class="num">Delivered (L)</th><th class="num">From tank (L)</th><th class="num">Start (min)</th><th class="num">Run (min)</th><th>Status</th></tr>';
+  s.entries.forEach(function(e, i){
+    h += '<tr class="click'+(i===selected?' sel':'')+'" onclick="selectRow('+i+')"><td>'+e.order+'</td><td><b>'+esc(e.name)+'</b></td><td>'+esc(e.crop)+'</td>'
+      + '<td class="num">'+f1(e.effMoisture)+'</td><td class="num">'+(e.distance<0?'&mdash;':f1(e.distance))+'</td><td class="num">'+f1(e.need)+'</td>'
+      + '<td class="num">'+f1(e.delivered)+'</td><td class="num">'+f1(e.fromSource)+'</td><td class="num">'+f1(e.startMin)+'</td><td class="num">'+f1(e.runMin)+'</td>'
+      + '<td><span class="pill '+esc(e.status)+'">'+esc(e.status)+'</span></td></tr>';
+  });
+  if(!s.entries.length) h += '<tr><td colspan="11" class="muted">No zone needs irrigation right now.</td></tr>';
+  $('schedTable').innerHTML = h;
+
+  $('skipped').textContent = s.skipped.length
+    ? 'Skipped (enough moisture / rain expected): ' + s.skipped.map(function(k){ return k.name+' ('+f1(k.effMoisture)+'% \u2265 '+f1(k.target)+'%)'; }).join(', ')
+    : '';
+}
+function stat(cls, v, l){ return '<div class="stat '+cls+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>'; }
+function selectRow(i){ selected = i; renderSchedule(); renderNetwork(currentPath()); }
+
+/* ---------- pipe map ---------- */
+function renderNetwork(path){
+  if(!network) return;
+  var hl = {}; for(var i=0;i<path.length-1;i++){ hl[Math.min(path[i],path[i+1])+'-'+Math.max(path[i],path[i+1])] = true; }
+  var onPath = {}; path.forEach(function(p){ onPath[p]=true; });
+  var N = network.nodes;
+  var svg = '<svg viewBox="0 0 720 340" width="100%" style="min-width:620px;max-width:900px">';
+  network.edges.forEach(function(e){
+    var a=N[e.u], b=N[e.v], on = hl[Math.min(e.u,e.v)+'-'+Math.max(e.u,e.v)];
+    svg += '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" stroke="'+(on?'#e65100':'#8d9a8f')+'" stroke-width="'+(on?5:2)+'" stroke-linecap="round"/>';
+    svg += '<text class="elen" x="'+((a.x+b.x)/2)+'" y="'+((a.y+b.y)/2-4)+'" text-anchor="middle">'+f1(e.length)+'m</text>';
+  });
+  N.forEach(function(n){
+    var isSrc = n.id === network.source, isOut = n.name.indexOf('Outlet') === 0;
+    var fill = isSrc ? '#1565c0' : (isOut ? '#2e7d32' : '#8d9a8f');
+    svg += '<circle cx="'+n.x+'" cy="'+n.y+'" r="'+(isSrc?14:11)+'" fill="'+fill+'" stroke="'+(onPath[n.id]?'#e65100':'#fff')+'" stroke-width="'+(onPath[n.id]?4:2)+'"/>';
+    svg += '<text x="'+n.x+'" y="'+(n.y+27)+'" text-anchor="middle">'+esc(n.name)+'</text>';
+    var zn = zones.filter(function(z){ return z.node === n.id; }).map(function(z){ return z.name; });
+    if(zn.length) svg += '<text x="'+n.x+'" y="'+(n.y-17)+'" text-anchor="middle" style="font-weight:700">'+esc(zn.join(', '))+'</text>';
+  });
+  $('net').innerHTML = svg + '</svg>';
+}
+
+/* ---------- start ---------- */
+(async function init(){
+  try{
+    network = await api('/api/network');
+    var z = await api('/api/zones'); zones = z.zones;
+    fillNodeSelect(); renderZones(); renderNetwork([]);
+  }catch(e){ showMsg(e.message, false); }
+})();
+</script>
+</body>
+</html>
